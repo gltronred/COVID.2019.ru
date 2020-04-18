@@ -1,3 +1,21 @@
+################################################################################
+## Rewrite of covid.2019.ru.main.r using `tidyverse` set of libraries
+##
+## Data is loaded and transformed much faster.
+## This script loads data ~2s instead of ~10m.
+## However, dataframes created by this script differ from those created by
+## "covid.2019.ru.data_transformations.r".
+##
+## Plots are saved into ../newplots (not included in repository)
+##
+## Full run of this script (creating all plots) consumes 2m54s on my computer.
+##
+## NB. This script creates an LL.3 model, but its results do not coincide with
+## "covid.2019.ru.growth.models.r", I'm investigating
+##
+################################################################################
+
+
 library(drc)
 #library(aomisc)
 library(maps)
@@ -8,6 +26,8 @@ library(modelr)
 
 ################################################################################
 ### Load
+
+dir.create("../newplots")
 
 covid.2019.ru <- read_tsv("../data/momentary.txt",
                           col_types = "Tfffficfccc",
