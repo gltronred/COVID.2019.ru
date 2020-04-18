@@ -50,25 +50,37 @@ covid.2019.cumul.daily <- covid.2019.ts %>%
   arrange(DAY) %>%
   group_by(DAY) %>%
   summarise(NUMBER = sum(NUMBER)) %>%
-  mutate(SUM = cumsum(NUMBER)) %>%
-  filter(DAY > "2020-03-03") %>%
-  mutate(START = (DAY - min(DAY))/ddays(1))
+  mutate(SUM = cumsum(NUMBER),
+         START = (DAY - ymd("2020-01-31"))/ddays(1))
 
 ################################################################################
 ### Models
 
 #covid.2019.short.exp <- drm(covid.2019.cumul.daily$SUM ~ covid.2019.cumul.daily$DAY,
 #                            fct = DRC.expoGrowth())
-covid.2019.short.ll3 <- drm(covid.2019.cumul.daily$SUM ~ covid.2019.cumul.daily$START,
+
+covid.2019.short.ll3 <- drm(SUM ~ START,
+                            data = covid.2019.cumul.daily %>%
+                              filter(DAY > "2020-03-03"),
+                            fct = LL.3())
+covid.2019.full.ll3 <- drm(SUM ~ START,
+                            data = covid.2019.cumul.daily,
                             fct = LL.3())
 #summary(covid.2019.short.ll3)
 
-ggplot(data.frame(START = seq(0,60)) %>%
-       add_predictions(covid.2019.short.ll3) %>%
-       left_join(covid.2019.cumul.daily)) +
-  geom_point(aes(START,SUM)) +
-  geom_line(aes(START,pred)) +
-  scale_y_log10()
+g <- ggplot(data.frame(START = seq(0,120)) %>%
+            add_predictions(covid.2019.short.ll3, var="short") %>%
+            add_predictions(covid.2019.full.ll3, var="full") %>%
+            left_join(covid.2019.cumul.daily) %>%
+            fill(SUM, .direction="up")) +
+  geom_point(aes(START,SUM, colour="sum")) +
+  geom_line(aes(START,full, colour="full")) +
+  geom_vline(aes(xintercept = covid.2019.full.ll3$fit$par[3])) +
+  scale_y_log10() +
+  coord_cartesian(ylim = c(1,1000000)) +
+  guides(colour = "none") +
+  labs(x = "Days since 2020-01-31", y = "Total cases registered", title = "Russian Federation")
+ggsave("../newplots/COVID.2019.fitting.rmc.log10.png",g, height = 6.25, width = 8.33, units = "in")
 
 ################################################################################
 ### Plots
