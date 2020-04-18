@@ -1,9 +1,10 @@
 library(drc)
-library(aomisc)
+#library(aomisc)
 library(maps)
 library(tidyverse)
 library(lubridate)
 library(RcppRoll)
+library(modelr)
 
 ################################################################################
 ### Load
@@ -44,8 +45,30 @@ covid.2019.cumul <- covid.2019.ts %>%
   group_by(EVENT,LOCUS) %>%
   summarise(SUM = sum(NUMBER))
 
+covid.2019.cumul.daily <- covid.2019.ts %>%
+  filter(EVENT == "detected") %>%
+  arrange(DAY) %>%
+  group_by(DAY) %>%
+  summarise(NUMBER = sum(NUMBER)) %>%
+  mutate(SUM = cumsum(NUMBER)) %>%
+  filter(DAY > "2020-03-03") %>%
+  mutate(START = (DAY - min(DAY))/ddays(1))
+
 ################################################################################
 ### Models
+
+#covid.2019.short.exp <- drm(covid.2019.cumul.daily$SUM ~ covid.2019.cumul.daily$DAY,
+#                            fct = DRC.expoGrowth())
+covid.2019.short.ll3 <- drm(covid.2019.cumul.daily$SUM ~ covid.2019.cumul.daily$START,
+                            fct = LL.3())
+#summary(covid.2019.short.ll3)
+
+ggplot(data.frame(START = seq(0,60)) %>%
+       add_predictions(covid.2019.short.ll3) %>%
+       left_join(covid.2019.cumul.daily)) +
+  geom_point(aes(START,SUM)) +
+  geom_line(aes(START,pred)) +
+  scale_y_log10()
 
 ################################################################################
 ### Plots
