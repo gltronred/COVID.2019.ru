@@ -1,6 +1,7 @@
 library(maps)
 library(tidyverse)
 library(lubridate)
+library(RcppRoll)
 
 ################################################################################
 ### Load
@@ -180,3 +181,80 @@ g <- ggplot(covid.2019.ts %>%
   theme(axis.text.x = element_text(angle = 90))
 ggsave("../newplots/COVID.2019.cumulated.TARD.png",g, height = 6.25, width = 8.33, units = "in")
 ggsave("../newplots/COVID.2019.cumulated.TARD.log10.png",g + scale_y_log10(), height = 6.25, width = 8.33, units = "in")
+
+################################################################################
+### Regions
+
+### Common utils
+scales_for_selection <- list(
+  scale_colour_manual(values = c("TRUE" = "red", "FALSE" = "black")),
+  scale_size_manual(values = c("TRUE" = 1.5, "FALSE" = 1)),
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.1)),
+  guides(colour = "none", size = "none", alpha = "none")
+)
+
+covid.2019.reg <- covid.2019.ts %>%
+  filter(EVENT == "detected") %>%
+  arrange(DAY) %>%
+  group_by(LOCUS) %>%
+  mutate(SUM = cumsum(NUMBER),
+         PREV = lag(SUM),
+         RT = roll_meanr(SUM/PREV, n=3, by=1, fill=NA))
+covid.2019.race <- covid.2019.reg %>%
+  filter(SUM >= 50) %>%
+  group_by(LOCUS) %>%
+  mutate(START = DAY - min(DAY))
+
+### Directories
+dir.create("../newplots/regions")
+dir.create("../newplots/regions/rt")
+dir.create("../newplots/regions/race")
+dir.create("../newplots/regions/rt.race")
+
+for(i in 1:length(levels(covid.2019.ts$LOCUS))){
+  i <- 29
+  region <- levels(covid.2019.ts$LOCUS)[i]
+
+### Pure detected
+  g <- ggplot(covid.2019.reg %>%
+              mutate(SEL = LOCUS==region)) +
+    geom_line(aes(DAY,SUM, fill = LOCUS, size = SEL, colour = SEL, alpha = SEL)) +
+    scale_x_date(breaks = "week", minor_breaks = "day") +
+    scale_y_log10() +
+    scales_for_selection +
+    labs(x = NULL, y = "Total COVID-19 cases detected", title = paste0("Russian Federation / ", region)) +
+    theme(axis.text.x = element_text(angle = 90))
+  ggsave(paste0("../newplots/regions/COVID.2019.cumulated.log10.", i, ".png"),g, height = 6.25, width = 8.33, units = "in")
+
+### Pure Rt
+  g <- ggplot(covid.2019.reg %>%
+              mutate(SEL = LOCUS==region)) +
+    geom_line(aes(DAY, RT, fill=LOCUS, size=SEL, colour=SEL, alpha=SEL)) +
+    scale_x_date(breaks = "week", minor_breaks = "day") +
+    scale_y_continuous(breaks = seq(1,1.7,0.1), minor_breaks = seq(1,1.7,0.05)) +
+    scales_for_selection +
+    coord_cartesian(xlim = c(ymd("2020-03-11"), max(covid.2019.ts$DAY)), ylim = c(1,1.7)) +
+    labs(x = NULL, y = "Rt, rolling average for 3 days", title = paste0("Russian Federation / ", region))
+  ggsave(paste0("../newplots/regions/rt/COVID.2019.rt.log10.", i, ".png"),g, height = 6.25, width = 8.33, units = "in")
+
+### Race detected
+  g <- ggplot(covid.2019.race %>%
+              mutate(SEL = LOCUS==region)) +
+    geom_line(aes(START,SUM, fill = LOCUS, size = SEL, colour = SEL, alpha = SEL)) +
+    scale_y_log10() +
+    scales_for_selection +
+    labs(x = "Days since N=50 threshold", y = "Total COVID-19 cases detected", title = paste0("Russian Federation / ", region))
+  ggsave(paste0("../newplots/regions/race/COVID.2019.race.log10.", i, ".png"),g, height = 6.25, width = 8.33, units = "in")
+
+### Race Rt
+  g <- ggplot(covid.2019.race %>%
+              mutate(SEL = LOCUS==region)) +
+    geom_line(aes(START, RT, fill=LOCUS, size=SEL, colour=SEL, alpha=SEL)) +
+    scale_x_continuous(breaks = seq(0,max(covid.2019.race$START)/ddays(1),5), minor_breaks = seq(0,max(covid.2019.race$START))) +
+    scale_y_continuous(breaks = seq(1,1.7,0.1), minor_breaks = seq(1,1.7,0.05)) +
+    scales_for_selection +
+    coord_cartesian(xlim = c(0, max(covid.2019.race$START)), ylim = c(1,1.7)) +
+    labs(x = "Days since N=50 threshold", y = "Rt, rolling average for 3 days", title = paste0("Russian Federation / ", region))
+  ggsave(paste0("../newplots/regions/rt.race/COVID.2019.rt.race.log10.", i, ".png"),g, height = 6.25, width = 8.33, units = "in")
+
+}
