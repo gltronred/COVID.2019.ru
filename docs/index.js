@@ -9,14 +9,12 @@ const root   = document.getElementById("root");
 const race   = document.getElementById("race");
 
 function updateSel(traces) {
-  console.log("reset");
   const reset = {
     opacity: 0.1
   };
   Plotly.restyle(root, reset);
   Plotly.restyle(race, reset);
 
-  console.log("collect selection");
   const selected = {
     opacity: 1
   };
@@ -24,7 +22,6 @@ function updateSel(traces) {
   for(var i = 0, size = traces.length; i < size; i++) {
     if ($("#c" + i).prop("checked")) sel.push(i);
   }
-  console.log(sel);
 
   Plotly.restyle(root, selected, sel);
   Plotly.restyle(race, selected, sel);
