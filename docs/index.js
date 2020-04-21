@@ -39,7 +39,7 @@ $(function(){
     date.setHours(0,0,0,0);
     return { ts: date,
              event: d.EVENT,
-             locus: d["LOCUS.0"],
+             locus: d["LOCUS"],
              num: parseInt(d.NUMBER)
            };
   }).then(raw => {
@@ -86,11 +86,11 @@ $(function(){
 
     Plotly.newPlot(root, traces, tracesCfg);
 
-    const races = _.map(cumul, (v,k) => ({
+    const races = _.sortBy(_.map(cumul, (v,k) => ({
       name: k,
       x: _.map(v, "days"),
       y: _.map(v, "num")
-    }));
+    })), ["name"]);
 
     const racesCfg = {
       xaxis: {
